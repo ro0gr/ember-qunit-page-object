@@ -1,15 +1,17 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render } from '@ember/test-helpers';
+import { hasClass } from 'ember-cli-page-object';
 import { create } from 'ember-cli-page-object-qunit';
 import hbs from 'htmlbars-inline-precompile';
 
 const page = create({
     screen: {
-        scope: '.screen',
-        result: {
-            scope: 'result',
-        }
+      scope: '.screen',
+      isDisabled: hasClass('disabled'),
+      result: {
+        scope: '.result'
+      }
     }
 });
 

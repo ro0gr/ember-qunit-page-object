@@ -10,12 +10,12 @@ export class Assertions {
     this.po = pageObject;
     this.testContext = testContext;
 
-    for (let key in this.po.__propertNames__) {
+    this.po.__propNames__.forEach(key => {
       let inverseKey = buildInverseKey(key);
 
       this[key] = this.__wrap__(key, true, humanizeString(key))
       this[inverseKey] = this.__wrap__(key, false, humanizeString(inverseKey));
-    }
+    });
   }
 
   __wrap__(k, isPositive = true, defaultMessage = undefined) {
