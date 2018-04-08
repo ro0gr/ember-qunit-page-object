@@ -35,6 +35,8 @@ export class Assertions {
       }
 
       this._pushResult(result === (isPositive === true), message)
+
+      return this;
     }
   }
 
@@ -46,6 +48,8 @@ export class Assertions {
       expected,
       actual
     });
+
+    return this;
   }
 
   doesNotHaveText(expected, message = `has no text "${expected}"`) {
@@ -56,6 +60,8 @@ export class Assertions {
       expected,
       actual
     });
+
+    return this;
   }
 
   _pushResult(result, message, options = {}) {

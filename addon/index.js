@@ -11,25 +11,27 @@ import {
 
 import dsl from 'ember-cli-page-object/-private/dsl';
 
+console.log('default dsl', Object.keys(dsl));
+
 const KNOWN_MODIFIERS = ['is', 'has', 'does', 'will'];
 
-const defaultKnownKeys = Object.keys(dsl).filter(k => {
-  const [leader] = decamelize(k).split('_');
-  return KNOWN_MODIFIERS.includes(leader)
-});
+const defaultKnownKeys = ['isVisible', 'isPresent', 'isHidden'];
 
-// function descriptorBuilder(target, blueprintKey, /* value /*, defaultBuilder */) {
-//   const [leader] = decamelize(blueprintKey).split('_');
+function descriptorBuilder(target, blueprintKey, value, defaultBuilder) {
+  defaultBuilder(target, blueprintKey, value, defaultBuilder);
 
-//   if (KNOWN_MODIFIERS.includes(leader)) {
-//     if (!target.__propNames__) {
-//       target.__propNames__ = [];
-//     }
-//     const inverseKey = buildInverseKey(blueprintKey);
-
-//     target.__propNames__ = target.__propNames__.concat([ blueprintKey, inverseKey ])
-//   }
-// }
+  // Currently ember-cli-page-object doesn't provide an API for detecting
+  // if the property is a getter like `text` or a function like a `clickable`
+  //
+  // It's a kind of dirty hack. We assume page `create` is called before
+  // markup is rendered or an application is visited. So when we access a plain property
+  // it immediatelly tries to find a parent scope which would throw an exception.
+  try {
+    target[blueprintKey]
+  } catch (e) {
+    target.__plainGetterNames__.push(blueprintKey);
+  }
+}
 
 // function defaultBuilder(target, blueprintKey, blueprint /*, defaultBuilder */) {
 //   if (typeof blueprint !== 'object' && blueprint !== null) {
@@ -61,6 +63,10 @@ function propsBuilder(target, blueprintKey, blueprint /*, defaultBuilder */) {
     target[blueprintKey].__propNames__ = target[blueprintKey].__propNames__.concat(knownKeys);
   }
 
+  if (!target[blueprintKey].__plainGetterNames__) {
+    target[blueprintKey].__plainGetterNames__ = [];
+  }
+
   return [target[blueprintKey], blueprint];
 }
 
@@ -70,6 +76,7 @@ function syncPropNames(from, to) {
   Object.keys(from).forEach(k => {
     if (
       !from.__propNames__.includes(k) // avoid getter property to be executed
+      && !from.__plainGetterNames__.includes(k) // avoid getter property to be executed
       && typeof from[k] === 'object'
       && from[k] !== null
       && typeof from[k].length === 'undefined'
@@ -83,7 +90,7 @@ export function create(definition) {
   const builder = {
     object: propsBuilder,
     // default: defaultBuilder,
-    // descriptor: descriptorBuilder
+    descriptor: descriptorBuilder
   };
 
   const propNamesTree = ceibo.create(definition, assign({ builder }));
