@@ -11,19 +11,18 @@ import {
 import { create } from 'ember-cli-page-object-qunit';
 import hbs from 'htmlbars-inline-precompile';
 
-const defaultTemplate = hbs`<div class="screen">
-  <div class="result">91</div>
-</div>`;
-
 const page = create({
     screen: {
       scope: '.screen',
-      isDisabled: hasClass('disabled'),
       // isVeryDisabled: is(':disabled'),
       result: {
-        text: text(),
         click: clickable(),
         scope: '.result'
+      },
+      form: {
+        name: {
+          scope: '[name="name"]'
+        }
       }
     }
 });
@@ -31,9 +30,16 @@ const page = create({
 module('smoke test', function(hooks) {
   setupRenderingTest(hooks);
 
-  test('supports default "is" props', async function(assert) {
-    await render(defaultTemplate);
+  hooks.beforeEach(async function() {
+    await render(hbs`<div class="screen">
+  <div class="result">91</div>
+  <form>
+    <input name="name" />
+  </form>
+</div>`);
+  });
 
+  test('supports default "is" props', async function(assert) {
     page.screen.as(s => {
       assert.po(s).isPresent();
       assert.po(s).isVisible();
@@ -41,36 +47,30 @@ module('smoke test', function(hooks) {
   });
 
   test('supports inverted default "is" props', async function(assert) {
-    await render(defaultTemplate);
-
     assert.po(page.screen.result).isNotHidden();
   });
 
+  test('supports default hasText', async function(assert) {
+    assert.po(page.screen.result).hasText('91');
+    assert.po(page.screen.result).doesNotHaveText('non-existing');
+  });
+
+  test('supports default hasValue', async function(assert) {
+    assert.po(page.screen.form.name).hasValue('1');
+    assert.po(page.screen.form.name).doesNotHaveValue('blabla');
+  });
 
   test('supports chaining', async function(assert) {
-    await render(defaultTemplate);
-
     assert.po(page.screen)
       .isPresent()
       .isVisible();
   });
 
-  test('supports hasText', async function(assert) {
-    await render(defaultTemplate);
-
-    assert.po(page.screen.result).hasText('91');
-  });
-
   skip('supports not', async function(assert) {
-    await render(defaultTemplate);
-
     assert.po(page.screen).not.isHidden();
   });
 
-
   skip('supports contains', async function(assert) {
-    await render(defaultTemplate);
-
     assert.po(page.screen.result).contains('91');
 
     assert.po(page.screen.result).doesNotContain('91');

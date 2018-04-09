@@ -16,6 +16,14 @@ export class Assertions {
       this[key] = this.__wrap__(key, true, humanizeString(key))
       this[inverseKey] = this.__wrap__(key, false, humanizeString(inverseKey));
     });
+
+    this.po.__immediatePropNames__ && this.po.__immediatePropNames__.forEach(key => {
+      const withHas = __prefix('has', key);
+      this[withHas] = this.__wrapImmediateProp__(key, true, humanizeString(withHas))
+
+      const withDoesntHave = __prefix('doesNotHave', key);
+      this[withDoesntHave] = this.__wrapImmediateProp__(key, false, humanizeString(withDoesntHave))
+    });
   }
 
   __wrap__(k, isPositive = true, defaultMessage = undefined) {
@@ -40,28 +48,21 @@ export class Assertions {
     }
   }
 
-  hasText(expected, message = `has text "${expected}"`) {
-    const actual = trimWhitespace(this.po.text);
-    const result = expected === actual;
+  __wrapImmediateProp__(k, isPositive = true, defaultMessage = undefined) {
+    return (expected, message) => {
+      message =  message || `${defaultMessage} ${argsToString([expected])}`;
 
-    this._pushResult(result, message, {
-      expected,
-      actual
-    });
+      const actual = trimWhitespace(this.po[k]);
 
-    return this;
-  }
+      const result = expected === actual;
 
-  doesNotHaveText(expected, message = `has no text "${expected}"`) {
-    const actual = trimWhitespace(this.po.text);
-    const result = expected !== actual;
+      this._pushResult(result === (isPositive === true), message, {
+        expected,
+        actual
+      });
 
-    this._pushResult(result, message || `does not have valid text "${expected}"`, {
-      expected,
-      actual
-    });
-
-    return this;
+      return this;
+    }
   }
 
   _pushResult(result, message, options = {}) {
@@ -91,6 +92,10 @@ export class Assertions {
   }
 }
 
+function __prefix(prefix, tail)  {
+  return camelize(`${prefix} ${tail.replace(/s$/, '')}`);
+}
+
 function trimWhitespace(string) {
   return string
     .replace(/[\t\r\n]/g, ' ')
@@ -111,18 +116,6 @@ export function buildFullPath(node) {
   return path.join('/');
 }
 
-export function buildSelector(node) {
-  let path = [];
-  let current = node;
-
-  do {
-    path.unshift(current.scope);
-    current = Ceibo.parent(current)
-  } while (Ceibo.parent(current));
-
-  return path.join(' ');
-}
-
 function humanizeString(input) {
   return decamelize(input).replace(/_/g, ' ');
 }
@@ -135,7 +128,8 @@ function buildInverseKey(key) {
   const [leader, ...restWords] = decamelize(key).split('_');
 
   if (restWords.length === 0) {
-    return camelize(`doesNot ${leader.replace(/s$/, '')}`);
+    return false;
+    // return camelize(`doesNot ${leader.replace(/s$/, '')}`);
   }
 
   let inverseLeader;
