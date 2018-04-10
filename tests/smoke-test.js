@@ -56,7 +56,7 @@ module('smoke test', function(hooks) {
   });
 
   test('supports default hasValue', async function(assert) {
-    assert.po(page.screen.form.name).hasValue('1');
+    assert.po(page.screen.form.name).hasValue('');
     assert.po(page.screen.form.name).doesNotHaveValue('blabla');
   });
 

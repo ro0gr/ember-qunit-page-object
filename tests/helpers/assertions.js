@@ -29,20 +29,20 @@ export class Assertions {
   __wrap__(k, isPositive = true, defaultMessage = undefined) {
     return (...assertionArgs) => {
       let message,
-        result;
+        actual;
 
       if (typeof this.po[k] === 'function') {
         const poMethod = this.po[k];
         const methodArgs = Array.prototype.slice.call(assertionArgs, 0, poMethod.length);
 
         message = assertionArgs[poMethod.length] || (defaultMessage + ' ' + argsToString(methodArgs));
-        result = poMethod.apply(this.po, methodArgs);
+        actual = poMethod.apply(this.po, methodArgs);
       } else {
         message = assertionArgs[0] || defaultMessage;
-        result = this.po[k];
+        actual = this.po[k];
       }
 
-      this._pushResult(result === (isPositive === true), message)
+      this._pushResult(actual === (isPositive === true), message)
 
       return this;
     }
