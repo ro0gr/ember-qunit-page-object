@@ -9,20 +9,18 @@ import {
   create as upstreamCreate
 } from 'ember-cli-page-object';
 
-import dsl from 'ember-cli-page-object/-private/dsl';
+export const KNOWN_LEADERS = ['is', 'has', 'does', 'will'];
+const DEFAULT_STRING_PROPS = ['text', 'value'];
+const DEFAULT_IS_PROPS = ['isVisible', 'isPresent', 'isHidden'];
 
-console.log('default dsl', Object.keys(dsl));
-
-const KNOWN_MODIFIERS = ['is', 'has', 'does', 'will'];
-const DEFAULT_IMMEDIATE_PROPS = ['text', 'value'];
-
-const defaultKnownKeys = ['isVisible', 'isPresent', 'isHidden'];
-
+export function isKnownLeader(leader) {
+  return (KNOWN_LEADERS.includes(leader));
+}
 function descriptorBuilder(target, blueprintKey, value, defaultBuilder) {
-  defaultBuilder(target, blueprintKey, value, defaultBuilder);
+  defaultBuilder(target, blueprintKey, value);
 
   const [leader] = decamelize(blueprintKey).split('_');
-  if (KNOWN_MODIFIERS.includes(leader)) {
+  if (isKnownLeader(leader)) {
     target[blueprintKey].__propNames__.push(blueprintKey);
   } else {
     // Currently ember-cli-page-object doesn't provide an API for detecting
@@ -34,6 +32,7 @@ function descriptorBuilder(target, blueprintKey, value, defaultBuilder) {
     try {
       target[blueprintKey]
     } catch (e) {
+      target.__propNames__.push(blueprintKey);
       target.__immediatePropNames__.push(blueprintKey);
     }
   }
@@ -41,8 +40,8 @@ function descriptorBuilder(target, blueprintKey, value, defaultBuilder) {
 
 function objectBuilder(target, blueprintKey, blueprint /*, defaultBuilder */) {
   target[blueprintKey] = {
-    __propNames__: defaultKnownKeys,
-    __immediatePropNames__: DEFAULT_IMMEDIATE_PROPS
+    __propNames__: DEFAULT_IS_PROPS,
+    __immediatePropNames__: DEFAULT_STRING_PROPS
   };
 
   return [target[blueprintKey], blueprint];
@@ -55,7 +54,7 @@ function syncPropNames(from, to) {
   Object.keys(from).forEach(k => {
     if (
       !from.__propNames__.includes(k) // avoid getter property to be executed
-      && !from.__immediatePropNames__.includes(k) // avoid getter property to be executed
+      // && !from.__immediatePropNames__.includes(k) // avoid getter property to be executed
       && typeof from[k] === 'object'
       && from[k] !== null
       && typeof from[k].length === 'undefined'
