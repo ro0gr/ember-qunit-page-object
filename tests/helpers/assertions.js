@@ -6,6 +6,28 @@ import {
 
 const KNOWN_LEADERS = ['is', 'has', 'does'];
 
+const VALIDATORS = {
+  equal(value, expected) {
+    const actual = trimWhitespace(value);
+
+    return [expected, actual, expected === actual];
+  },
+
+  notEqual() {
+    const [expected, actual, result] = VALIDATORS.equal(...arguments);
+
+    return [expected, actual, !result];
+  },
+
+  is(value) {
+    return [true, value, true === value];
+  },
+
+  isNot(value) {
+    return [false, value, false === value];
+  }
+}
+
 export class Assertions {
   constructor(pageObject, testContext) {
     this.po = pageObject;
@@ -15,78 +37,63 @@ export class Assertions {
       let [leader, ...restWords] = extractWords(key);
       if (isKnownLeader(leader)) {
         if (restWords && restWords.length ) {
-          let inverseKey = buildInverse(leader, restWords);
-
-          this[key] = this.__wrap__(key, true, humanizeString(key))
-          this[inverseKey] = this.__wrap__(key, false, humanizeString(inverseKey));
+          this._addAssertion(key, key, VALIDATORS.is);
+          this._addAssertion(key, buildInverse(leader, restWords), VALIDATORS.isNot);
         }
       } else {
-        const withHas = addPrefix('has', key);
-        const withDoesntHave = addPrefix('doesNotHave', key);
-
-        this[withHas] = this.__wrapImmediateProp__(key, true, humanizeString(withHas))
-        this[withDoesntHave] = this.__wrapImmediateProp__(key, false, humanizeString(withDoesntHave))
+        this._addAssertion(key, addPrefix('has', key), VALIDATORS.equal);
+        this._addAssertion(key, addPrefix('doesNotHave', key), VALIDATORS.notEqual);
       }
     });
   }
 
-  __wrap__(k, isPositive = true, defaultMessage = undefined) {
-    return (...assertionArgs) => {
-      let message,
-        actual;
+  _addAssertion(propName, assertionName, validator) {
+    const humanAssertionName = humanizeString(assertionName);
 
-      if (typeof this.po[k] === 'function') {
-        const poMethod = this.po[k];
+    return this[assertionName] = (...assertionArgs) => {
+      let message,
+        value;
+
+      if (typeof this.po[propName] === 'function') {
+        const poMethod = this.po[propName];
         const arity = poMethod.length;
         const methodArgs = Array.prototype.slice.call(assertionArgs, 0, arity);
 
-        message = assertionArgs[arity] || (defaultMessage + ' ' + pretifyList(methodArgs));
-        actual = poMethod.apply(this.po, methodArgs);
+        message = assertionArgs[arity] || (humanAssertionName + ' ' + pretifyList(methodArgs));
+        value = poMethod.apply(this.po, methodArgs);
       } else {
-        message = assertionArgs[0] || defaultMessage;
-        actual = this.po[k];
+        message = assertionArgs[0] || humanAssertionName;
+        value = this.po[propName];
       }
 
-      this._pushResult(actual === (isPositive === true), message)
+      let [expected, actual, result] = validator(value, ...assertionArgs)
 
-      return this;
-    }
-  }
-
-  __wrapImmediateProp__(k, isPositive = true, defaultMessage = undefined) {
-    return (expected, message) => {
-      message =  message || `${defaultMessage} ${pretifyList([expected])}`;
-
-      const actual = trimWhitespace(this.po[k]);
-
-      const result = expected === actual;
-
-      this._pushResult(result === (isPositive === true), message, {
-        expected,
-        actual
+      this.__pushResult({
+        result,
+        message,
+        actual,
+        expected
       });
 
       return this;
     }
   }
 
-  _pushResult(result, message, options = {}) {
-    if (!message) {
-      throw new Error('no message provided for the test result');
-    }
-
+  __pushResult({
+    result,
+    message,
+    actual,
+    expected
+  }) {
     if (typeof result !== 'boolean') {
       throw new Error('test result must be a boolean');
     }
 
-    let {
-      actual = result,
-      expected = true
-    } = options;
+    if (!message) {
+      throw new Error('no message provided for the test result');
+    }
 
-    let prefix = `${buildFullPath(this.po)}`;
-
-    message = `${prefix}: ${message}`;
+    message = `${buildFullPath(this.po)}: ${message}`;
 
     this.testContext.pushResult({
       result,
@@ -98,7 +105,7 @@ export class Assertions {
 }
 
 function addPrefix(prefix, tail)  {
-  return camelize(`${prefix} ${tail.replace(/s$/, '')}`);
+  return camelize(`${prefix} ${tail}`);
 }
 
 function trimWhitespace(string) {
@@ -138,7 +145,7 @@ function buildInverse(leader, restWords) {
   }
 
   if (restWords && restWords.length) {
-    inverse = [inverse, ...restWords].join(' ');
+    inverse = addPrefix(inverse, restWords.join(' '));
   }
 
   return camelize(inverse);
