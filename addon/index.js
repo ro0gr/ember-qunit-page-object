@@ -9,17 +9,38 @@ import {
   create as upstreamCreate
 } from 'ember-cli-page-object';
 
-export const KNOWN_LEADERS = ['is', 'has', 'does', 'will'];
-const DEFAULT_STRING_PROPS = ['text', 'value'];
-const DEFAULT_IS_PROPS = ['isVisible', 'isPresent', 'isHidden'];
+const DEFAULT_PROPS = [
+  'text',
+  'value',
+  'isVisible',
+  'isPresent',
+  'isHidden'
+];
 
-export function isKnownLeader(leader) {
+const KNOWN_LEADERS = ['is', 'has', 'does'];
+
+export function create(definition) {
+  const builder = {
+    object: objectBuilder,
+    descriptor: descriptorBuilder
+  };
+
+  const propNamesTree = ceibo.create(definition, assign({ builder }));
+
+  const page = upstreamCreate(definition);
+  copyMetas(propNamesTree, page)
+
+  return page;
+}
+
+function isKnownLeader(leader) {
   return (KNOWN_LEADERS.includes(leader));
 }
+
 function descriptorBuilder(target, blueprintKey, value, defaultBuilder) {
   defaultBuilder(target, blueprintKey, value);
 
-  const [leader] = decamelize(blueprintKey).split('_');
+  const [leader] = extractWords(blueprintKey);
   if (isKnownLeader(leader)) {
     target[blueprintKey].__propNames__.push(blueprintKey);
   } else {
@@ -32,48 +53,38 @@ function descriptorBuilder(target, blueprintKey, value, defaultBuilder) {
     try {
       target[blueprintKey]
     } catch (e) {
-      target.__propNames__.push(blueprintKey);
-      target.__immediatePropNames__.push(blueprintKey);
+      target[blueprintKey].__propNames__.push(blueprintKey);
     }
   }
 }
 
 function objectBuilder(target, blueprintKey, blueprint /*, defaultBuilder */) {
   target[blueprintKey] = {
-    __propNames__: DEFAULT_IS_PROPS,
-    __immediatePropNames__: DEFAULT_STRING_PROPS
+    __propNames__: DEFAULT_PROPS
   };
 
   return [target[blueprintKey], blueprint];
 }
 
-function syncPropNames(from, to) {
+function copyMetas(from, to) {
   to.__propNames__ = from.__propNames__;
-  to.__immediatePropNames__ = from.__immediatePropNames__;
 
   Object.keys(from).forEach(k => {
-    if (
-      !from.__propNames__.includes(k) // avoid getter property to be executed
-      // && !from.__immediatePropNames__.includes(k) // avoid getter property to be executed
-      && typeof from[k] === 'object'
-      && from[k] !== null
-      && typeof from[k].length === 'undefined'
+    var isUnknown = !from.__propNames__.includes(k);
+
+    if (isUnknown && isObject(from[k])
     ) {
-      syncPropNames(from[k], to[k]);
+      copyMetas(from[k], to[k]);
     }
   })
 }
 
-export function create(definition) {
-  const builder = {
-    object: objectBuilder,
-    descriptor: descriptorBuilder
-  };
+function isObject(o) {
+  return !Array.isArray(o)
+      && typeof o === 'object'
+      && o !== null;
+}
 
-  const propNamesTree = ceibo.create(definition, assign({ builder }));
-
-  const page = upstreamCreate(definition);
-  syncPropNames(propNamesTree, page)
-
-  return page;
+function extractWords(key) {
+  return decamelize(key).split('_');
 }
