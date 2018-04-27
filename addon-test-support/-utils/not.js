@@ -1,7 +1,5 @@
-const apply = Function.prototype.call.bind(Function.prototype.apply);
-const define = Object.defineProperty.bind(Object);
-
 export default function not(validator) {
+  // create validator inversion with the same arity
   return createFunction(validator.name, validator.length, function() {
     const [expected, actual, result] = validator(...arguments);
 
@@ -9,10 +7,11 @@ export default function not(validator) {
   })
 }
 
+const apply = Function.prototype.call.bind(Function.prototype.apply);
+const define = Object.defineProperty.bind(Object);
+
 /**
  * Creates a function wrapper with a specified name and arity
- *
- * This is useful for `not()` predicate
  *
  * @param {String} name
  * @param {Number} arity

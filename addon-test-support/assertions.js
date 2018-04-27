@@ -26,41 +26,72 @@ export class Assertions {
 
     this.not = {};
 
-    getterNames.forEach(key => {
-      const { leader, rest } = parseKey(key);
+    var getters = getterNames.reduce((props, propName) => {
+      const { leader, rest } = parseKey(propName);
 
+      const humanizedPropName = humanizeString(rest.join(''));
+      props = props.concat([
+        [leader, humanizedPropName]
+      ]);
+
+      return props;
+    }, []);
+
+    var methods = readMethodNames.reduce((props, propName) => {
+      const property = parseKey(propName);
+
+      if (property) {
+        const { leader, rest } = property;
+
+        humanizeString(rest.join(''));
+        props = props.concat([
+          [leader, rest]
+        ]);
+      }
+
+      return props;
+    }, []);
+
+    getters.forEach(({ key, leader, rest }) => {
       if (rest && rest.length) {
         if (['is', 'has'].includes(leader)) {
-          this._addAssertion(key, key, is);
+          this._addAssertion(key, key, is, testContext);
         } else {
-          this._addAssertion(key, addPrefix('has', key), equal);
+          this._addAssertion(key, addPrefix('has', key), equal, testContext);
         }
       }
     });
 
-    readMethodNames.forEach(key => {
-      const { leader, rest } = parseKey(key);
-
+    methods.concat(getters).forEach(( { key, rest, leader } ) => {
       if (rest && rest.length) {
         if (['is', 'has'].includes(leader)) {
-          this._addAssertion(key, key, is);
+          this._addAssertion(key, key, is, testContext);
         }
       }
     });
 
-    this._addAssertion('text', 'contains', contains);
+    [].concat(getters, methods).forEach((prop) => {
+      const { propName, assertionName, validator, leader, rest } = prop;
+
+      this._buildAssertion(propName, assertionName, validator, testContext);
+
+      const inversedAssetionName = (leader || '') + 'Not ' + rest.join('');
+      this._buildAssertion(propName, inversedAssetionName, not(validator), testContext);
+    }, []);
+
+    this.this._buildAssertion('text', 'contains', contains, testContext);
   }
 
-  _addAssertion(propName, assertionName, validator) {
+  _addAssertion(propName, assertionName, validator, testContext) {
     this[assertionName] = this._buildAssertion(...arguments);
 
     let { leader, rest } = parseKey(assertionName);
 
     const inversedAssetionName = (leader || '') + 'Not ' + rest.join('');
-    this.not[assertionName] = this._buildAssertion(propName, inversedAssetionName, not(validator));
+    this.not[assertionName] = this._buildAssertion(propName, inversedAssetionName, not(validator), testContext);
   }
 
-  _buildAssertion(propName, assertionName, validator) {
+  _buildAssertion(propName, assertionName, validator, testContext) {
     return (...assertionArgs) => {
       const arity = validator.length;
       const methodArgs = Array.prototype.slice.call(assertionArgs, 0, arity);
@@ -78,34 +109,19 @@ export class Assertions {
       message = `${buildFullPath(this.__po__)}: ${message}`;
 
       let [expected, actual, result] = validator(value, ...assertionArgs)
+      if (typeof result !== 'boolean') {
+        throw new Error('test result must be a boolean');
+      }
 
-      this.__pushResult({
+      testContext.pushResult({
         result,
-        message,
         actual,
-        expected
+        expected,
+        message
       });
 
       return this;
     }
-  }
-
-  __pushResult({
-    result,
-    message,
-    actual,
-    expected
-  }) {
-    if (typeof result !== 'boolean') {
-      throw new Error('test result must be a boolean');
-    }
-
-    this.__testContext__.pushResult({
-      result,
-      actual,
-      expected,
-      message
-    });
   }
 }
 
